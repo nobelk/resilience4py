@@ -1,5 +1,6 @@
-from resilience4py.metrics.metrics import Outcome
 from src.resilience4py.metrics.abstract_aggregation import AbstractAggregation
+from src.resilience4py.metrics.metrics import Outcome
+
 
 class TotalAggregation(AbstractAggregation):
 
