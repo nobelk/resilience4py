@@ -1,5 +1,5 @@
-from resilience4py.metrics.snaphot_impl import SnapshotImpl
-from resilience4py.metrics.total_aggregation import TotalAggregation
+from src.resilience4py.metrics.snaphot_impl import SnapshotImpl
+from src.resilience4py.metrics.total_aggregation import TotalAggregation
 
 
 def test_snapshot_impl():

@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 
-from resilience4py.metrics.snapshot import Snapshot
-
+from src.resilience4py.metrics.snapshot import Snapshot
 
 class Outcome(Enum):
     SUCCESS = 10
