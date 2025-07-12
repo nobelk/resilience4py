@@ -1,0 +1,7 @@
+[project]
+name = "resilience4py"
+version = "0.1.0"
+description = "Port of resilience4j library of Java"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
