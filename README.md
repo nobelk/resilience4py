@@ -126,6 +126,99 @@ The Bulkhead pattern isolates failures in one part of a system from taking down 
 - Configurable queue capacity (for thread pool bulkhead)
 - Thread isolation capabilities (for thread pool bulkhead)
 
+## Examples
+
+Comprehensive Flask API examples demonstrating all resilience patterns are available in the `src/examples/` directory. Each example runs as a standalone Flask application on different ports:
+
+| Example | Port | Pattern | Description |
+|---------|------|---------|-------------|
+| `circuit_breaker_flask.py` | 5001 | Circuit Breaker | Protect external API calls with automatic failure detection |
+| `rate_limiter_flask.py` | 5002 | Rate Limiter | Control request rates with tier-based limiting |
+| `retry_flask.py` | 5003 | Retry | Automatic retry with various backoff strategies |
+| `bulkhead_flask.py` | 5004 | Bulkhead | Isolate different operation types with concurrency control |
+
+### Prerequisites
+
+Install Flask to run the examples:
+
+```bash
+# Using uv (recommended)
+uv add flask
+
+# Or using pip
+pip install flask
+```
+
+### Running Individual Examples
+
+Each example runs on a different port to allow running multiple examples simultaneously:
+
+```bash
+# Circuit Breaker example (port 5001)
+uv run python src/examples/circuit_breaker_flask.py
+
+# Rate Limiter example (port 5002)  
+uv run python src/examples/rate_limiter_flask.py
+
+# Retry example (port 5003)
+uv run python src/examples/retry_flask.py
+
+# Bulkhead example (port 5004)
+uv run python src/examples/bulkhead_flask.py
+```
+
+### Running All Examples Simultaneously
+
+To test pattern interactions and isolation, you can run all examples at once:
+
+```bash
+# Terminal 1: Circuit Breaker
+uv run python src/examples/circuit_breaker_flask.py
+
+# Terminal 2: Rate Limiter  
+uv run python src/examples/rate_limiter_flask.py
+
+# Terminal 3: Retry
+uv run python src/examples/retry_flask.py
+
+# Terminal 4: Bulkhead
+uv run python src/examples/bulkhead_flask.py
+```
+
+### Quick Testing
+
+Once running, test the examples with curl:
+
+```bash
+# Test Circuit Breaker
+curl http://localhost:5001/api/data
+curl http://localhost:5001/api/health
+
+# Test Rate Limiter with different user tiers
+curl http://localhost:5002/api/data
+curl -H "X-User-Tier: premium" http://localhost:5002/api/data
+
+# Test Retry with different strategies
+curl http://localhost:5003/api/retry/exponential?scenario=improving
+curl http://localhost:5003/api/retry/metrics
+
+# Test Bulkhead with different operation types
+curl http://localhost:5004/api/cpu-intensive
+curl -H "X-User-Premium: true" http://localhost:5004/api/premium
+curl http://localhost:5004/api/bulkhead/status
+```
+
+### Example Features
+
+- **Interactive testing endpoints** with detailed responses
+- **Real-time metrics** and status monitoring
+- **Configurable failure scenarios** for testing different conditions
+- **Load testing endpoints** for observing behavior under stress
+- **Comprehensive documentation** with testing sequences
+- **Multi-pattern demonstrations** showing how patterns work together
+
+See [src/examples/README.md](src/examples/README.md) for detailed usage instructions and testing scenarios.
+
 ## Building and Testing
 
 ### Running Tests
@@ -215,7 +308,13 @@ resilience4py/
 │   ├── circuitbreaker/     # Circuit breaker implementation
 │   ├── bulkhead/           # Bulkhead pattern
 │   ├── ratelimiter/        # Rate limiting
-│   └── retry/              # Retry mechanism
+│   ├── retry/              # Retry mechanism
+│   └── examples/           # Flask API examples
+│       ├── circuit_breaker_flask.py  # Circuit breaker example
+│       ├── rate_limiter_flask.py     # Rate limiter example
+│       ├── retry_flask.py            # Retry example
+│       ├── bulkhead_flask.py         # Bulkhead example
+│       └── README.md                 # Examples documentation
 ├── tests/                  # Test suite
 │   ├── core/              # Core infrastructure tests
 │   ├── circuitbreaker/    # Circuit breaker tests
