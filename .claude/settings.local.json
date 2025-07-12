@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(uv:*)",
+      "Bash(mkdir:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(PYTHONPATH=src python src/resilience4py/core/example.py)",
+      "Bash(rm:*)",
+      "Bash(touch:*)",
+      "Bash(tree:*)",
+      "Bash(chmod:*)",
+      "Bash(grep:*)",
+      "Bash(pytest:*)",
+      "Bash(pip install:*)",
+      "Bash(PYTHONPATH=/Users/Nobel.Khandaker/sources/resilience4py/src python:*)"
+    ],
+    "deny": []
+  }
+}
