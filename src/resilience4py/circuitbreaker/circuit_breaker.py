@@ -6,7 +6,7 @@ circuit breaker pattern for fault tolerance in distributed systems.
 
 import asyncio
 import time
-from functools import wraps
+from functools import partial, wraps
 from typing import Any, Callable, Optional, TypeVar, Union, Awaitable, Dict, List
 from weakref import WeakSet
 
@@ -196,19 +196,23 @@ class CircuitBreaker:
                 f"CircuitBreaker '{self.name}' is {self.state_name.value}"
             )
         
-        # Execute the function and measure duration
-        start_time = time.time()
+        # Execute the function and measure duration. Use monotonic so the duration
+        # cannot go negative if wall-clock jumps mid-call.
+        start_time = time.monotonic()
         try:
             # Execute function
             if asyncio.iscoroutinefunction(func):
                 result = await func(*args, **kwargs)
             else:
-                # Run sync function in executor to avoid blocking
+                # Run sync function in executor to avoid blocking.
+                # run_in_executor doesn't accept kwargs, so bind them with partial.
                 loop = asyncio.get_event_loop()
-                result = await loop.run_in_executor(None, func, *args, **kwargs)
+                result = await loop.run_in_executor(
+                    None, partial(func, *args, **kwargs)
+                )
             
             # Record success
-            duration_ms = (time.time() - start_time) * 1000
+            duration_ms = (time.monotonic() - start_time) * 1000
             await self._state.on_success(duration_ms)
             await self._publish_event(
                 CircuitBreakerOnSuccessEvent.create(self.name, duration_ms)
@@ -218,7 +222,7 @@ class CircuitBreaker:
             
         except Exception as e:
             # Record error
-            duration_ms = (time.time() - start_time) * 1000
+            duration_ms = (time.monotonic() - start_time) * 1000
             
             # Check if we should ignore this exception
             if not self.config.should_record_exception(e):

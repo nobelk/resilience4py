@@ -1,5 +1,10 @@
 """
-Atomic Rate Limiter implementation with lock-free algorithm.
+Atomic Rate Limiter implementation.
+
+State transitions are serialized through an ``asyncio.Lock`` (see
+``_state_lock``). The "atomic" naming refers to each reservation being a
+single all-or-nothing operation against the limiter state, not to lock-free
+concurrency.
 """
 
 import asyncio
@@ -38,10 +43,12 @@ F = TypeVar('F', bound=Callable[..., Any])
 
 class AtomicRateLimiter:
     """
-    Lock-free rate limiter implementation.
-    
-    This implementation uses an atomic algorithm to manage rate limiting without
-    locks for the permission check, only using a lock for state updates.
+    Rate limiter whose state transitions are atomic under ``asyncio.Lock``.
+
+    Each call to :meth:`_reserve_permission` takes the state lock, computes
+    the cycle position, and either grants a permit or returns the wait
+    duration — all as one indivisible operation. Permission checks are
+    *not* lock-free; the lock is acquired on every reservation.
     """
     
     def __init__(self, name: str, config: RateLimiterConfig):
@@ -60,7 +67,9 @@ class AtomicRateLimiter:
             active_cycle=0,
             nanoseconds_to_wait=0
         )
-        self._event_publishers = []
+        self._event_publishers: list = []
+        # Typed listeners keyed by event class — populated via add_event_listener.
+        self._event_listeners: dict[type, list[Callable]] = {}
     
     def __call__(self, func: F) -> F:
         """
@@ -159,7 +168,8 @@ class AtomicRateLimiter:
             - Negative value if timeout would be exceeded
         """
         async with self._state_lock:
-            current_nanos = time.time_ns()
+            # Monotonic clock — wall-clock jumps would corrupt cycle accounting.
+            current_nanos = time.monotonic_ns()
             cycle_length_nanos = int(self.config.limit_refresh_period.total_seconds() * 1_000_000_000)
             current_cycle = current_nanos // cycle_length_nanos
             
@@ -199,8 +209,8 @@ class AtomicRateLimiter:
     
     async def _publish_event(self, event: Union[RateLimiterOnSuccessEvent, RateLimiterOnFailureEvent]):
         """
-        Publish an event to all registered publishers.
-        
+        Publish an event to all registered publishers and typed listeners.
+
         Args:
             event: The event to publish.
         """
@@ -208,27 +218,69 @@ class AtomicRateLimiter:
             try:
                 await publisher.publish(event)
             except Exception:
-                # Log error but don't stop processing
-                pass
-    
+                # Listener failures must not break rate limiting; log via warnings
+                # so consumer bugs are visible without crashing the call path.
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Event publisher %r failed for %s", publisher, type(event).__name__,
+                    exc_info=True,
+                )
+
+        # Dispatch to typed listeners (matches by exact event type).
+        for listener in list(self._event_listeners.get(type(event), ())):
+            try:
+                if asyncio.iscoroutinefunction(listener):
+                    await listener(event)
+                else:
+                    listener(event)
+            except Exception:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Event listener %r failed for %s", listener, type(event).__name__,
+                    exc_info=True,
+                )
+
     def add_event_publisher(self, publisher):
         """
         Add an event publisher.
-        
+
         Args:
             publisher: The event publisher to add.
         """
         self._event_publishers.append(publisher)
-    
+
     def remove_event_publisher(self, publisher):
         """
         Remove an event publisher.
-        
+
         Args:
             publisher: The event publisher to remove.
         """
         if publisher in self._event_publishers:
             self._event_publishers.remove(publisher)
+
+    def add_event_listener(self, event_type: type, listener: Callable) -> None:
+        """Register a listener for a specific event type.
+
+        Args:
+            event_type: The event class to listen for.
+            listener: Sync or async callable invoked with the event.
+        """
+        self._event_listeners.setdefault(event_type, []).append(listener)
+
+    def remove_event_listener(self, event_type: type, listener: Callable) -> bool:
+        """Remove a previously registered listener.
+
+        Returns:
+            True if the listener was found and removed, False otherwise.
+        """
+        listeners = self._event_listeners.get(event_type)
+        if listeners and listener in listeners:
+            listeners.remove(listener)
+            if not listeners:
+                del self._event_listeners[event_type]
+            return True
+        return False
     
     async def get_metrics(self) -> dict:
         """

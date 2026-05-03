@@ -613,7 +613,7 @@ class TestEdgeCases:
         cb.transition_to_state = AsyncMock()
         
         # Mock time to be exactly at the boundary
-        with patch('time.time') as mock_time:
+        with patch('time.monotonic') as mock_time:
             # Set up time progression: opened_at=0, current=0.05 (exactly 50ms)
             # Need multiple calls for __init__ and acquire_permission
             mock_time.side_effect = [0, 0.05, 0.05, 0.05]  # opened_at, then multiple current times

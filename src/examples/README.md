@@ -13,13 +13,16 @@ This directory contains Flask API examples demonstrating how to use resilience4p
 
 ## Prerequisites
 
-Install Flask for running the examples:
+Flask is an optional dependency, exposed through the `examples` extra so
+the core library stays lightweight. Install it with one of:
 
 ```bash
-# Using uv (recommended)
-uv add flask
+# Install resilience4py with the examples extra (recommended)
+uv pip install -e ".[examples]"
 
-# Or using pip
+# Or install Flask directly
+uv pip install flask
+# pip equivalent:
 pip install flask
 ```
 

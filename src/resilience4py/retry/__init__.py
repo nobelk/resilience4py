@@ -95,6 +95,7 @@ __all__ = [
     'RetryOnIgnoredErrorEvent',
 ]
 
-# Version info
-__version__ = '0.1.0'
+# Version info — keep aligned with the top-level package
+from resilience4py import __version__  # noqa: E402
+
 __author__ = 'resilience4py'

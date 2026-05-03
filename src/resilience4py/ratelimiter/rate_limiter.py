@@ -109,16 +109,21 @@ class RateLimiter:
         self.name = name
         self.config = config
         self._atomic_limiter: Optional[AtomicRateLimiter] = None
-    
+        # Listeners registered before the underlying limiter exists are held
+        # here, then flushed in _get_limiter().
+        self._pending_listeners: list[tuple[type, Callable]] = []
+
     async def _get_limiter(self) -> AtomicRateLimiter:
         """
         Get the underlying atomic rate limiter.
-        
+
         Returns:
             The atomic rate limiter instance.
         """
         if self._atomic_limiter is None:
             self._atomic_limiter = await _registry.get_or_create(self.name, self.config)
+            for event_type, listener in self._pending_listeners:
+                self._atomic_limiter.add_event_listener(event_type, listener)
         return self._atomic_limiter
     
     def __call__(self, func: F) -> F:
@@ -229,17 +234,39 @@ class RateLimiter:
         limiter = await self._get_limiter()
         await limiter.reset()
     
-    def add_event_listener(self, event_type: type, listener: Callable):
+    def add_event_listener(self, event_type: type, listener: Callable) -> None:
         """
-        Add an event listener for specific event types.
-        
+        Add an event listener for a specific event type.
+
+        Listeners registered before the underlying AtomicRateLimiter exists are
+        held until the first call (which creates the limiter). After that, new
+        listeners attach immediately. Listeners may be sync or async callables
+        that accept the event as their only argument.
+
         Args:
-            event_type: The type of event to listen for.
-            listener: The callback function to call when the event occurs.
+            event_type: The event class to listen for (e.g.
+                ``RateLimiterOnSuccessEvent`` or ``RateLimiterOnFailureEvent``).
+            listener: Callable invoked with the event when it fires.
         """
-        # This would integrate with the event publisher system
-        # Implementation depends on the core event system
-        pass
+        self._pending_listeners.append((event_type, listener))
+        if self._atomic_limiter is not None:
+            self._atomic_limiter.add_event_listener(event_type, listener)
+
+    def remove_event_listener(self, event_type: type, listener: Callable) -> bool:
+        """Remove a previously registered listener.
+
+        Returns:
+            True if a matching listener was removed, False otherwise.
+        """
+        removed = False
+        try:
+            self._pending_listeners.remove((event_type, listener))
+            removed = True
+        except ValueError:
+            pass
+        if self._atomic_limiter is not None:
+            removed = self._atomic_limiter.remove_event_listener(event_type, listener) or removed
+        return removed
 
 
 # Convenience functions

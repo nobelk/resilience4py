@@ -2,7 +2,6 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Coverage](https://img.shields.io/badge/coverage-44%25-yellow)](htmlcov/index.html)
 
 resilience4py is a Python port of the popular Java library [resilience4j](https://github.com/resilience4j/resilience4j), providing fault tolerance patterns for building resilient applications.
 
@@ -36,17 +35,25 @@ pip install -e .
 ### Install dependencies for development
 
 ```bash
-# Install with test dependencies
+# Install editable plus test extras
 uv pip install -e ".[test]"
 
-# Or install development dependencies
-uv add --dev pytest-asyncio pytest-cov pytest-timeout pytest-mock
+# Or install the full dev environment (test runners + lint/type tools)
+# from the lock file. Equivalent to `make install-dev`.
+uv sync --dev
 ```
 
 ## Quick Start
 
 ```python
-from resilience4py import CircuitBreaker, RateLimiter, Retry, Bulkhead
+from datetime import timedelta
+
+from resilience4py import (
+    CircuitBreaker,
+    RateLimiter,
+    Retry,
+    SemaphoreBulkhead,
+)
 from resilience4py.circuitbreaker import CircuitBreakerConfig
 from resilience4py.ratelimiter import RateLimiterConfig
 from resilience4py.retry import RetryConfig
@@ -65,8 +72,8 @@ async def protected_api_call():
     limit_for_period=100,
     limit_refresh_period=timedelta(seconds=1)
 ))
-def rate_limited_function():
-    return expensive_operation()
+async def rate_limited_function():
+    return await expensive_operation()
 
 # Retry example
 @Retry("flaky-service", RetryConfig(
@@ -76,11 +83,12 @@ def rate_limited_function():
 async def flaky_operation():
     return await unreliable_service.call()
 
-# Bulkhead example
-@Bulkhead("resource-pool", BulkheadConfig(
+# Bulkhead example (Bulkhead itself is abstract — use one of its
+# concrete implementations: SemaphoreBulkhead or ThreadPoolBulkhead)
+@SemaphoreBulkhead("resource-pool", BulkheadConfig(
     max_concurrent_calls=10
 ))
-def resource_intensive_task():
+async def resource_intensive_task():
     return process_data()
 ```
 
@@ -102,7 +110,7 @@ The Rate Limiter pattern limits the rate of incoming requests to a component, pr
 - Configurable number of permitted calls per time period
 - Configurable timeout for threads waiting for permission
 - Nanosecond precision for accurate rate limiting
-- Lock-free atomic implementation
+- Atomic state updates guarded by an `asyncio.Lock`
 
 ### Retry
 The Retry pattern automatically retries failed operations, which is useful for handling transient failures.
@@ -139,13 +147,16 @@ Comprehensive Flask API examples demonstrating all resilience patterns are avail
 
 ### Prerequisites
 
-Install Flask to run the examples:
+The Flask example apps live behind an optional extra so the core library
+stays dependency-free. Install Flask with one of:
 
 ```bash
-# Using uv (recommended)
-uv add flask
+# Pull in resilience4py + the example deps in one shot (recommended)
+uv pip install -e ".[examples]"
 
-# Or using pip
+# Or install Flask directly
+uv pip install flask
+# pip equivalent:
 pip install flask
 ```
 
@@ -238,10 +249,11 @@ pytest -k "test_circuit_breaker"
 
 # Run tests with verbose output
 pytest -v
-
-# Run tests in parallel (requires pytest-xdist)
-pytest -n auto
 ```
+
+> Tip: install `pytest-xdist` separately if you want parallel execution
+> (`uv pip install pytest-xdist` followed by `pytest -n auto`). It is
+> intentionally not part of the default dev environment.
 
 ### Using Make (if Makefile is available)
 
@@ -268,7 +280,7 @@ make format
 make lint
 
 # Run type checking
-make typecheck
+make type-check
 
 # Clean build artifacts
 make clean
@@ -276,7 +288,8 @@ make clean
 
 ### Test Coverage
 
-The project currently has 44% test coverage. View the detailed coverage report by opening `htmlcov/index.html` after running tests with coverage.
+Run `make coverage` (or `pytest --cov=resilience4py --cov-report=html`) to
+generate a coverage report. The HTML report is written to `htmlcov/index.html`.
 
 ### Code Quality
 
@@ -298,31 +311,31 @@ black src/ tests/ && flake8 src/ tests/ && mypy src/
 
 ```
 resilience4py/
-├── src/resilience4py/
-│   ├── core/               # Base classes and utilities
-│   │   ├── config.py       # Base configuration classes
-│   │   ├── registry.py     # Generic registry pattern
-│   │   ├── events.py       # Event system infrastructure
-│   │   ├── decorators.py   # Base decorator utilities
-│   │   └── metrics.py      # Metrics abstractions
-│   ├── circuitbreaker/     # Circuit breaker implementation
-│   ├── bulkhead/           # Bulkhead pattern
-│   ├── ratelimiter/        # Rate limiting
-│   ├── retry/              # Retry mechanism
-│   └── examples/           # Flask API examples
-│       ├── circuit_breaker_flask.py  # Circuit breaker example
-│       ├── rate_limiter_flask.py     # Rate limiter example
-│       ├── retry_flask.py            # Retry example
-│       ├── bulkhead_flask.py         # Bulkhead example
-│       └── README.md                 # Examples documentation
+├── src/
+│   ├── resilience4py/      # The library itself
+│   │   ├── core/           # Base classes and utilities
+│   │   │   ├── config.py       # Base configuration classes
+│   │   │   ├── registry.py     # Generic registry pattern
+│   │   │   ├── events.py       # Event system infrastructure
+│   │   │   ├── decorators.py   # Base decorator utilities
+│   │   │   └── metrics.py      # Metrics abstractions
+│   │   ├── circuitbreaker/ # Circuit breaker implementation
+│   │   ├── bulkhead/       # Bulkhead pattern
+│   │   ├── ratelimiter/    # Rate limiting
+│   │   └── retry/          # Retry mechanism
+│   └── examples/           # Flask API examples (optional `examples` extra)
+│       ├── circuit_breaker_flask.py
+│       ├── rate_limiter_flask.py
+│       ├── retry_flask.py
+│       ├── bulkhead_flask.py
+│       └── README.md
 ├── tests/                  # Test suite
 │   ├── core/              # Core infrastructure tests
 │   ├── circuitbreaker/    # Circuit breaker tests
 │   ├── bulkhead/          # Bulkhead tests
 │   ├── ratelimiter/       # Rate limiter tests
 │   └── retry/             # Retry tests
-├── pyproject.toml         # Project configuration
-├── pytest.ini             # Pytest configuration
+├── pyproject.toml         # Project + pytest + coverage configuration
 └── README.md              # This file
 ```
 

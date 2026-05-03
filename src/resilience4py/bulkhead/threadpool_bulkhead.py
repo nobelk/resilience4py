@@ -52,57 +52,49 @@ class ThreadPoolBulkhead(Bulkhead):
         
         # Semaphore to control total concurrent executions (threads + queue)
         total_capacity = config.max_thread_pool_size + config.queue_capacity
+        self._total_capacity = total_capacity
         self._semaphore = asyncio.Semaphore(total_capacity)
+        # Track available permits explicitly so we don't need to read
+        # the private asyncio.Semaphore._value attribute.
+        self._available_permits = total_capacity
         self._event_handlers: list[Callable[[Event], None]] = []
-        
-        # Initialize metrics (defer if no event loop is running)
-        try:
-            asyncio.create_task(
-                self.metrics.update_max_allowed_concurrent_calls(total_capacity)
-            )
-            asyncio.create_task(
-                self.metrics.update_available_concurrent_calls(total_capacity)
-            )
-        except RuntimeError:
-            # No event loop running, defer initialization
-            self._deferred_metrics_init = (total_capacity,)
-    
+        # Always defer metrics init: constructors must not depend on ambient
+        # event-loop state, and asyncio.create_task() in __init__ produced
+        # "coroutine was never awaited" warnings whenever no loop was running.
+        self._metrics_initialized = False
+
     async def _ensure_metrics_initialized(self):
-        """Initialize metrics if deferred."""
-        if hasattr(self, '_deferred_metrics_init'):
-            total_capacity = self._deferred_metrics_init[0]
-            await self.metrics.update_max_allowed_concurrent_calls(total_capacity)
-            await self.metrics.update_available_concurrent_calls(total_capacity)
-            delattr(self, '_deferred_metrics_init')
+        """Initialize metrics on first use (lazy init)."""
+        if not self._metrics_initialized:
+            await self.metrics.update_max_allowed_concurrent_calls(self._total_capacity)
+            await self.metrics.update_available_concurrent_calls(self._total_capacity)
+            self._metrics_initialized = True
     
     async def acquire_permission(self) -> bool:
         """
         Try to acquire permission to execute.
-        
+
         Returns:
             True if permission was acquired, False otherwise
         """
         await self._ensure_metrics_initialized()
-        
-        # Non-blocking acquire check
-        if self._semaphore.locked() and self._semaphore._value == 0:
+
+        # Non-blocking check using our explicit counter.
+        if self._available_permits <= 0:
             return False
-        
+
         acquired = await self._semaphore.acquire()
         if acquired:
-            # Update metrics
-            available = self._semaphore._value
-            await self.metrics.update_available_concurrent_calls(available)
-        
+            self._available_permits -= 1
+            await self.metrics.update_available_concurrent_calls(self._available_permits)
+
         return acquired
-    
+
     async def release_permission(self) -> None:
         """Release previously acquired permission."""
         self._semaphore.release()
-        
-        # Update metrics
-        available = self._semaphore._value
-        await self.metrics.update_available_concurrent_calls(available)
+        self._available_permits += 1
+        await self.metrics.update_available_concurrent_calls(self._available_permits)
     
     async def on_call_permitted(self) -> None:
         """Called when a call is permitted."""

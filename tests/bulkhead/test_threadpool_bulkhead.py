@@ -31,17 +31,17 @@ class TestThreadPoolBulkhead:
             queue_capacity=10
         )
         bulkhead = ThreadPoolBulkhead("test-bulkhead", config)
-        
+
         assert bulkhead.name == "test-bulkhead"
         assert bulkhead.thread_config == config
         assert isinstance(bulkhead._executor, ThreadPoolExecutor)
         assert bulkhead._executor._max_workers == 4
-        
+
         # Check semaphore capacity (threads + queue)
-        assert bulkhead._semaphore._value == 14  # 4 + 10
-        
-        # Check metrics initialization
-        await asyncio.sleep(0.01)
+        assert bulkhead._available_permits == 14  # 4 + 10
+
+        # Metrics initialize lazily — trigger explicit init then verify.
+        await bulkhead._ensure_metrics_initialized()
         assert await bulkhead.metrics.get_max_allowed_concurrent_calls() == 14
         assert await bulkhead.metrics.get_available_concurrent_calls() == 14
     
@@ -56,20 +56,20 @@ class TestThreadPoolBulkhead:
         
         # Total capacity is 3 (2 threads + 1 queue)
         assert await bulkhead.acquire_permission() is True
-        assert bulkhead._semaphore._value == 2
+        assert bulkhead._available_permits == 2
         
         assert await bulkhead.acquire_permission() is True
-        assert bulkhead._semaphore._value == 1
+        assert bulkhead._available_permits == 1
         
         assert await bulkhead.acquire_permission() is True
-        assert bulkhead._semaphore._value == 0
+        assert bulkhead._available_permits == 0
         
         # Next should fail
         assert await bulkhead.acquire_permission() is False
         
         # Release one
         await bulkhead.release_permission()
-        assert bulkhead._semaphore._value == 1
+        assert bulkhead._available_permits == 1
         
         # Now acquisition should succeed
         assert await bulkhead.acquire_permission() is True
@@ -291,7 +291,7 @@ class TestThreadPoolBulkhead:
             await bulkhead.submit(failing_func)
         
         # Bulkhead should be available again
-        assert bulkhead._semaphore._value > 0
+        assert bulkhead._available_permits > 0
     
     @pytest.mark.asyncio
     async def test_shutdown(self):
@@ -347,9 +347,9 @@ class TestThreadPoolBulkhead:
             queue_capacity=1
         )
         bulkhead = ThreadPoolBulkhead("test", config)
-        
-        # Initial state
-        await asyncio.sleep(0.01)
+
+        # Initial state — trigger lazy metric init explicitly.
+        await bulkhead._ensure_metrics_initialized()
         assert await bulkhead.metrics.get_max_allowed_concurrent_calls() == 3
         assert await bulkhead.metrics.get_available_concurrent_calls() == 3
         

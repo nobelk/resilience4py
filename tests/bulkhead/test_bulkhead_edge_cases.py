@@ -41,7 +41,7 @@ class TestSemaphoreBulkheadEdgeCases:
             await bulkhead._execute_async(failing_sync_func)
         
         # Bulkhead should be available again
-        assert bulkhead._semaphore._value == 2
+        assert bulkhead._available_permits == 2
     
     @pytest.mark.asyncio
     async def test_execute_async_with_exception_in_async_function(self):
@@ -56,7 +56,7 @@ class TestSemaphoreBulkheadEdgeCases:
             await bulkhead._execute_async(failing_async_func)
         
         # Bulkhead should be available again
-        assert bulkhead._semaphore._value == 2
+        assert bulkhead._available_permits == 2
     
     @pytest.mark.asyncio
     async def test_publish_event_with_sync_handler_exception(self):
@@ -143,22 +143,31 @@ class TestThreadPoolBulkheadEdgeCases:
     """Test edge cases for ThreadPoolBulkhead."""
     
     @pytest.mark.asyncio
-    async def test_deferred_metrics_initialization(self):
-        """Test metrics initialization when no event loop is running."""
+    async def test_lazy_metrics_initialization(self):
+        """Metrics initialize lazily on first use rather than at construction.
+
+        Constructor must not depend on ambient event-loop state, so metric
+        publication is deferred to the first async call. This avoids the
+        "coroutine was never awaited" warnings produced by the old
+        asyncio.create_task() in __init__.
+        """
         config = ThreadPoolBulkheadConfig(max_thread_pool_size=2, queue_capacity=1)
-        
-        # Create bulkhead when no event loop is running (simulate this scenario)
-        with patch('asyncio.create_task', side_effect=RuntimeError("No event loop")):
-            bulkhead = ThreadPoolBulkhead("test", config)
-            assert hasattr(bulkhead, '_deferred_metrics_init')
-        
-        # Now ensure metrics are initialized when event loop is available
+
+        # Constructor must not require an event loop and must not have initialized metrics yet.
+        bulkhead = ThreadPoolBulkhead("test", config)
+        assert bulkhead._metrics_initialized is False
+
+        # First call to _ensure_metrics_initialized populates the metric values.
         await bulkhead._ensure_metrics_initialized()
-        assert not hasattr(bulkhead, '_deferred_metrics_init')
-        
+        assert bulkhead._metrics_initialized is True
+
         # Check metrics are properly set
         assert await bulkhead.metrics.get_max_allowed_concurrent_calls() == 3  # 2 + 1
         assert await bulkhead.metrics.get_available_concurrent_calls() == 3
+
+        # Idempotent — calling again does not re-initialize.
+        await bulkhead._ensure_metrics_initialized()
+        assert bulkhead._metrics_initialized is True
     
     @pytest.mark.asyncio
     async def test_acquire_permission_when_semaphore_exhausted(self):
@@ -203,7 +212,7 @@ class TestThreadPoolBulkheadEdgeCases:
             await bulkhead._execute_async(failing_async_func)
         
         # Permissions should be released
-        assert bulkhead._semaphore._value > 0
+        assert bulkhead._available_permits > 0
     
     @pytest.mark.asyncio
     async def test_execute_async_with_sync_function_exception(self):
@@ -218,7 +227,7 @@ class TestThreadPoolBulkheadEdgeCases:
             await bulkhead._execute_async(failing_sync_func)
         
         # Permissions should be released
-        assert bulkhead._semaphore._value > 0
+        assert bulkhead._available_permits > 0
     
     @pytest.mark.asyncio
     async def test_multiple_async_functions_with_bulkhead(self):

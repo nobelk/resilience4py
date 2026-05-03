@@ -7,9 +7,21 @@ class TestImports:
     """Test importing resilience4py components."""
     
     def test_version_import(self):
-        """Test that version can be imported."""
+        """Test that version can be imported and is a non-empty string.
+
+        Version is sourced from package metadata (pyproject.toml), so this
+        test only asserts shape — not a hard-coded value that would have
+        to be updated on every release.
+        """
         from resilience4py import __version__
-        assert __version__ == "0.1.0"
+        assert isinstance(__version__, str)
+        assert len(__version__) > 0
+
+    def test_version_matches_package_metadata(self):
+        """Version exposed by the package matches the installed metadata."""
+        from importlib.metadata import version
+        from resilience4py import __version__
+        assert __version__ == version("resilience4py")
     
     def test_circuit_breaker_imports(self):
         """Test that circuit breaker components can be imported."""

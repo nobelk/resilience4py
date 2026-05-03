@@ -4,7 +4,12 @@ This package provides resilience patterns including Circuit Breaker,
 Bulkhead, Rate Limiter, and Retry for building fault-tolerant Python applications.
 """
 
-__version__ = "0.1.0"
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
+
+try:
+    __version__ = _pkg_version("resilience4py")
+except PackageNotFoundError:  # editable/source checkout without metadata
+    __version__ = "0.0.0+unknown"
 
 # Import all patterns and their components
 from resilience4py.circuitbreaker import CircuitBreaker, CircuitBreakerConfig

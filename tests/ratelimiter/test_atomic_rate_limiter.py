@@ -67,19 +67,27 @@ class TestAtomicRateLimiter:
     
     @pytest.mark.asyncio
     async def test_reserve_permission_timeout(self):
-        """Test permission reservation timeout."""
+        """Test permission reservation timeout.
+
+        Mocked time keeps this test deterministic — without it, the test
+        would be flaky because the position within the 10s cycle depends on
+        when the test happens to run.
+        """
         config = RateLimiterConfig(
             limit_for_period=1,
             limit_refresh_period=timedelta(seconds=10),
             timeout_duration=timedelta(seconds=1)
         )
-        rate_limiter = AtomicRateLimiter("timeout-test", config)
-        
-        # Use up the permission
-        await rate_limiter._reserve_permission()
-        
-        # Next permission should timeout
-        wait_time = await rate_limiter._reserve_permission()
+
+        # Pin the clock to the very start of a cycle so the wait until the
+        # next cycle is always the full 10 seconds, well past the 1s timeout.
+        cycle_nanos = 10_000_000_000
+        with patch('time.monotonic_ns', return_value=cycle_nanos):
+            rate_limiter = AtomicRateLimiter("timeout-test", config)
+            # Use up the permission
+            await rate_limiter._reserve_permission()
+            # Next permission should timeout (10s wait > 1s timeout)
+            wait_time = await rate_limiter._reserve_permission()
         assert wait_time < 0  # Negative indicates timeout
     
     @pytest.mark.asyncio
@@ -91,10 +99,10 @@ class TestAtomicRateLimiter:
         assert rate_limiter._state.active_permissions == 0
         
         # Get current time before mocking
-        current_time = time.time_ns()
-        
+        current_time = time.monotonic_ns()
+
         # Mock time to simulate next cycle
-        with patch('time.time_ns') as mock_time:
+        with patch('time.monotonic_ns') as mock_time:
             # Move to next cycle (1 second later)
             mock_time.return_value = int(current_time + 1_000_000_000)
             

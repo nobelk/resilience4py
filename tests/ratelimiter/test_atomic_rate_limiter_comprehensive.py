@@ -241,10 +241,10 @@ class TestAtomicRateLimiterComprehensive:
                 loop.run_until_complete(rate_limiter._reserve_permission())
                 
                 # Get current time before mocking
-                current_time = time.time_ns()
-                
+                current_time = time.monotonic_ns()
+
                 # Mock time to simulate multiple cycles passed
-                with patch('time.time_ns') as mock_time:
+                with patch('time.monotonic_ns') as mock_time:
                     # Move to 3 cycles later
                     mock_time.return_value = current_time + (3 * 1_000_000_000)  # 3 seconds later
                     
@@ -296,7 +296,7 @@ class TestAtomicRateLimiterComprehensive:
             asyncio.set_event_loop(loop)
             try:
                 # Mock time to be exactly at cycle boundary
-                with patch('time.time_ns') as mock_time:
+                with patch('time.monotonic_ns') as mock_time:
                     cycle_length_nanos = int(rate_limiter.config.limit_refresh_period.total_seconds() * 1_000_000_000)
                     current_time = cycle_length_nanos  # Exactly at second cycle start
                     mock_time.return_value = current_time

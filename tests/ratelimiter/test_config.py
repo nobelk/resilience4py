@@ -39,10 +39,10 @@ class TestRateLimiterConfig:
         RateLimiterConfig(limit_for_period=1000000)
         
         # Invalid values
-        with pytest.raises(AssertionError, match="limit_for_period must be greater than 0"):
+        with pytest.raises(ValueError, match="limit_for_period must be greater than 0"):
             RateLimiterConfig(limit_for_period=0)
         
-        with pytest.raises(AssertionError, match="limit_for_period must be greater than 0"):
+        with pytest.raises(ValueError, match="limit_for_period must be greater than 0"):
             RateLimiterConfig(limit_for_period=-1)
     
     def test_validation_limit_refresh_period(self):
@@ -52,10 +52,10 @@ class TestRateLimiterConfig:
         RateLimiterConfig(limit_refresh_period=timedelta(seconds=60))
         
         # Invalid values
-        with pytest.raises(AssertionError, match="limit_refresh_period must be greater than 0"):
+        with pytest.raises(ValueError, match="limit_refresh_period must be greater than 0"):
             RateLimiterConfig(limit_refresh_period=timedelta(seconds=0))
         
-        with pytest.raises(AssertionError, match="limit_refresh_period must be greater than 0"):
+        with pytest.raises(ValueError, match="limit_refresh_period must be greater than 0"):
             RateLimiterConfig(limit_refresh_period=timedelta(seconds=-1))
     
     def test_validation_timeout_duration(self):
@@ -65,7 +65,7 @@ class TestRateLimiterConfig:
         RateLimiterConfig(timeout_duration=timedelta(seconds=60))
         
         # Invalid values
-        with pytest.raises(AssertionError, match="timeout_duration must be non-negative"):
+        with pytest.raises(ValueError, match="timeout_duration must be non-negative"):
             RateLimiterConfig(timeout_duration=timedelta(seconds=-1))
     
     def test_config_immutability(self):
@@ -117,5 +117,5 @@ class TestRateLimiterConfig:
         invalid_config = RateLimiterConfig()
         object.__setattr__(invalid_config, 'limit_for_period', 0)
         
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError):
             invalid_config.validate()

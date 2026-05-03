@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10"
 
 [[package]]
@@ -465,11 +465,8 @@ wheels = [
 
 [[package]]
 name = "resilience4py"
-version = "0.1.0"
+version = "0.5.0"
 source = { editable = "." }
-dependencies = [
-    { name = "flask" },
-]
 
 [package.optional-dependencies]
 dev = [
@@ -477,6 +474,9 @@ dev = [
     { name = "flake8" },
     { name = "isort" },
     { name = "mypy" },
+]
+examples = [
+    { name = "flask" },
 ]
 test = [
     { name = "pytest" },
@@ -488,6 +488,10 @@ test = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "black" },
+    { name = "flake8" },
+    { name = "isort" },
+    { name = "mypy" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "pytest-mock" },
@@ -498,7 +502,7 @@ dev = [
 requires-dist = [
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-    { name = "flask", specifier = ">=3.1.1" },
+    { name = "flask", marker = "extra == 'examples'", specifier = ">=3.1.1" },
     { name = "isort", marker = "extra == 'dev'", specifier = ">=5.12.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.4.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=7.4.0" },
@@ -507,10 +511,14 @@ requires-dist = [
     { name = "pytest-mock", marker = "extra == 'test'", specifier = ">=3.11.0" },
     { name = "pytest-timeout", marker = "extra == 'test'", specifier = ">=2.1.0" },
 ]
-provides-extras = ["test", "dev"]
+provides-extras = ["test", "dev", "examples"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "black", specifier = ">=23.0.0" },
+    { name = "flake8", specifier = ">=6.0.0" },
+    { name = "isort", specifier = ">=5.12.0" },
+    { name = "mypy", specifier = ">=1.4.0" },
     { name = "pytest-asyncio", specifier = ">=1.0.0" },
     { name = "pytest-cov", specifier = ">=6.2.1" },
     { name = "pytest-mock", specifier = ">=3.14.1" },

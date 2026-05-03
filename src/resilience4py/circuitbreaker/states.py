@@ -126,13 +126,15 @@ class OpenState(State):
     
     def __init__(self, circuit_breaker: 'CircuitBreaker'):
         super().__init__(circuit_breaker, CircuitBreakerState.OPEN)
-        self.opened_at = time.time()
+        # Monotonic clock — wall-clock jumps from NTP/VM suspends would otherwise
+        # corrupt half-open transition timing.
+        self.opened_at = time.monotonic()
     
     async def acquire_permission(self) -> bool:
         """Reject calls but check if we should transition to half-open."""
         # Check if we should transition to half-open
         if self.circuit_breaker.config.automatic_transition_from_open_to_half_open:
-            elapsed = time.time() - self.opened_at
+            elapsed = time.monotonic() - self.opened_at
             wait_seconds = self.circuit_breaker.config.wait_duration_in_open_state.total_seconds()
             
             if elapsed >= wait_seconds:
@@ -166,7 +168,7 @@ class HalfOpenState(State):
             slow_call_duration_threshold_ms=circuit_breaker.config.slow_call_duration_threshold.total_seconds() * 1000
         )
         self.permits_used = 0
-        self.entered_at = time.time()
+        self.entered_at = time.monotonic()
         self._lock = asyncio.Lock()
     
     async def acquire_permission(self) -> bool:
@@ -175,7 +177,7 @@ class HalfOpenState(State):
             # Check max wait duration if configured
             max_wait = self.circuit_breaker.config.max_wait_duration_in_half_open.total_seconds()
             if max_wait > 0:
-                elapsed = time.time() - self.entered_at
+                elapsed = time.monotonic() - self.entered_at
                 if elapsed >= max_wait:
                     # Timeout - transition back to open
                     await self.circuit_breaker.transition_to_state(CircuitBreakerState.OPEN)

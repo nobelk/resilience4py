@@ -26,13 +26,17 @@ class RateLimiterConfig:
     def validate(self) -> None:
         """
         Validate configuration parameters.
-        
+
         Raises:
-            AssertionError: If any configuration parameter is invalid.
+            ValueError: If any configuration parameter is invalid.
         """
-        assert self.limit_for_period > 0, "limit_for_period must be greater than 0"
-        assert self.limit_refresh_period.total_seconds() > 0, "limit_refresh_period must be greater than 0"
-        assert self.timeout_duration.total_seconds() >= 0, "timeout_duration must be non-negative"
+        # Use ValueError so validation runs even under `python -O` (asserts get stripped).
+        if self.limit_for_period <= 0:
+            raise ValueError("limit_for_period must be greater than 0")
+        if self.limit_refresh_period.total_seconds() <= 0:
+            raise ValueError("limit_refresh_period must be greater than 0")
+        if self.timeout_duration.total_seconds() < 0:
+            raise ValueError("timeout_duration must be non-negative")
     
     def __post_init__(self):
         """Validate configuration on initialization."""

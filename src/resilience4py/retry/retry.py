@@ -159,7 +159,7 @@ class Retry:
         sync code without interfering with the existing event loop.
         """
         last_exception: Optional[Exception] = None
-        start_time = time.time()
+        start_time = time.monotonic()
         
         for attempt in range(1, self.config.max_attempts + 1):
             try:
@@ -239,7 +239,7 @@ class Retry:
             Exception: The last exception if fail_after_max_attempts is False.
         """
         last_exception: Optional[Exception] = None
-        start_time = time.time()
+        start_time = time.monotonic()
         
         for attempt in range(1, self.config.max_attempts + 1):
             try:
@@ -264,12 +264,12 @@ class Retry:
                     else:
                         # Max attempts reached but result still triggers retry
                         # Treat as success since no exception occurred
-                        total_duration = time.time() - start_time
+                        total_duration = time.monotonic() - start_time
                         await self._emit_success_event(attempt, last_exception, total_duration)
                         return result
                 
                 # Success - emit event and return
-                total_duration = time.time() - start_time
+                total_duration = time.monotonic() - start_time
                 await self._emit_success_event(attempt, last_exception, total_duration)
                 return result
                 
@@ -292,7 +292,7 @@ class Retry:
                     await asyncio.sleep(wait_time)
                 else:
                     # Max attempts reached
-                    total_duration = time.time() - start_time
+                    total_duration = time.monotonic() - start_time
                     await self._emit_error_event(attempt, e, total_duration)
                     
                     if self.config.fail_after_max_attempts:

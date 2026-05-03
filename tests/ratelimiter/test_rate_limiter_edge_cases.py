@@ -84,8 +84,8 @@ class TestRateLimiterEdgeCases:
             asyncio.set_event_loop(loop)
             try:
                 # Mock time to ensure consistent timing
-                current_time = time.time_ns()
-                with patch('time.time_ns', return_value=current_time):
+                current_time = time.monotonic_ns()
+                with patch('time.monotonic_ns', return_value=current_time):
                     # Use the permission
                     wait_time = loop.run_until_complete(limiter._reserve_permission())
                     assert wait_time == 0
@@ -116,13 +116,13 @@ class TestRateLimiterEdgeCases:
                 loop.run_until_complete(limiter._reserve_permission())
                 
                 # Get current time and calculate next cycle start
-                current_time = time.time_ns()
+                current_time = time.monotonic_ns()
                 cycle_length_nanos = int(config.limit_refresh_period.total_seconds() * 1_000_000_000)
                 current_cycle = current_time // cycle_length_nanos
                 next_cycle_start = (current_cycle + 1) * cycle_length_nanos
-                
+
                 # Mock time to be exactly at next cycle start
-                with patch('time.time_ns') as mock_time:
+                with patch('time.monotonic_ns') as mock_time:
                     # Set time to exactly 1 cycle later
                     mock_time.return_value = next_cycle_start
                     
@@ -154,14 +154,14 @@ class TestRateLimiterEdgeCases:
                     loop.run_until_complete(limiter._reserve_permission())
                 
                 # Get current time and calculate future time
-                current_time = time.time_ns()
+                current_time = time.monotonic_ns()
                 cycle_length_nanos = int(config.limit_refresh_period.total_seconds() * 1_000_000_000)
                 current_cycle = current_time // cycle_length_nanos
                 future_cycle = current_cycle + 1000
                 future_time = future_cycle * cycle_length_nanos
-                
+
                 # Mock time to jump 1000 cycles into the future
-                with patch('time.time_ns') as mock_time:
+                with patch('time.monotonic_ns') as mock_time:
                     # Jump 1000 cycles (1000 seconds)
                     mock_time.return_value = future_time
                     
@@ -409,7 +409,7 @@ class TestPerformanceEdgeCases:
             asyncio.set_event_loop(loop)
             try:
                 # Simulate some cycles passing
-                with patch('time.time_ns') as mock_time:
+                with patch('time.monotonic_ns') as mock_time:
                     base_time = 1_000_000_000  # Start at 1 second in nanos
                     
                     for i in range(10):
@@ -438,7 +438,7 @@ class TestPerformanceEdgeCases:
             asyncio.set_event_loop(loop)
             try:
                 # Test with time exactly at nanosecond boundaries
-                with patch('time.time_ns') as mock_time:
+                with patch('time.monotonic_ns') as mock_time:
                     # Test at exactly 0 nanoseconds
                     mock_time.return_value = 0
                     wait_time = loop.run_until_complete(limiter._reserve_permission())

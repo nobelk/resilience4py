@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
-"""Example demonstrating the retry pattern from resilience4py."""
+"""Example demonstrating the retry pattern from resilience4py.
+
+Run from the repo root with the package installed editable
+(``uv pip install -e .``)::
+
+    python example_retry.py
+"""
 
 import asyncio
 import random
-import sys
-sys.path.insert(0, 'src')
 
 from resilience4py.retry import (
     Retry, RetryConfig, ExponentialBackoff,
-    RetryOnRetryEvent, RetryOnSuccessEvent
+    RetryOnRetryEvent, RetryOnSuccessEvent,
 )
 
 
