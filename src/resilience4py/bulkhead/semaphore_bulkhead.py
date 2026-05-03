@@ -44,7 +44,7 @@ class SemaphoreBulkhead(Bulkhead):
         self._event_handlers: list[Callable[[Event], None]] = []
         self._metrics_initialized = False
 
-    async def _init_metrics_if_needed(self):
+    async def _init_metrics_if_needed(self) -> None:
         """Initialize metrics on first use (lazy init)."""
         if not self._metrics_initialized:
             await self.metrics.update_max_allowed_concurrent_calls(self._max_calls)
@@ -110,7 +110,7 @@ class SemaphoreBulkhead(Bulkhead):
         event = BulkheadOnCallFinishedEvent(self.name)
         await self._publish_event(event)
     
-    async def _execute_async(self, func: Callable, *args, **kwargs):
+    async def _execute_async(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """
         Execute function with bulkhead protection.
         

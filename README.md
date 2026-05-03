@@ -11,6 +11,10 @@ Resilience4py is a lightweight fault tolerance library designed for functional p
 
 Unlike other fault tolerance libraries, Resilience4py is designed to be modular, allowing developers to choose only the patterns they need. The library has minimal dependencies and is built with a functional programming approach using modern Python features like asyncio and type hints.
 
+> **Coming from Java resilience4j?** See [docs/resilience4j-compatibility.md](docs/resilience4j-compatibility.md)
+> for a per-pattern compatibility matrix covering API mapping, threading model,
+> defaults, event semantics, and known deviations.
+
 ## Installation
 
 ### Prerequisites

@@ -78,8 +78,8 @@ class Bulkhead(BaseDecorator, ABC):
 
 class BulkheadMetrics:
     """Metrics collector for bulkhead."""
-    
-    def __init__(self):
+
+    def __init__(self) -> None:
         self._available_concurrent_calls = 0
         self._max_allowed_concurrent_calls = 0
         self._lock = asyncio.Lock()

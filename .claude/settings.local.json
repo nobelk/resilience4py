@@ -18,7 +18,8 @@
       "Bash(pytest:*)",
       "Bash(pip install:*)",
       "Bash(PYTHONPATH=/Users/Nobel.Khandaker/sources/resilience4py/src python:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(unzip -l dist/resilience4py-*.whl)"
     ],
     "deny": []
   }

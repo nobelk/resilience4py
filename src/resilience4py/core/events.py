@@ -181,22 +181,20 @@ class EventPublisher:
                     exc_info=True
                 )
     
-    def __enter__(self):
+    def __enter__(self) -> "EventPublisher":
         """Context manager entry"""
         asyncio.create_task(self.start())
         return self
-    
-    def __exit__(self, exc_type, exc_val, exc_tb):
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Context manager exit"""
         asyncio.create_task(self.stop())
-        return False
-    
-    async def __aenter__(self):
+
+    async def __aenter__(self) -> "EventPublisher":
         """Async context manager entry"""
         await self.start()
         return self
-    
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Async context manager exit"""
         await self.stop()
-        return False

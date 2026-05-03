@@ -22,7 +22,7 @@ class BulkheadEvent(Event):
     """Base class for bulkhead events."""
     bulkhead_name: str = ""
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Set name to bulkhead name if not provided."""
         if not self.name:
             object.__setattr__(self, 'name', self.bulkhead_name)

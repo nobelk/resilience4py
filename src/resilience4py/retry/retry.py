@@ -7,7 +7,7 @@ synchronous and asynchronous functions to automatically retry failed operations.
 import asyncio
 import time
 from functools import wraps
-from typing import TypeVar, Callable, Any, Optional, Union, Awaitable, cast
+from typing import Dict, List, TypeVar, Callable, Any, Optional, Union, Awaitable, cast
 from datetime import datetime
 
 from .config import RetryConfig
@@ -95,7 +95,7 @@ class Retry:
         self.config.validate()
         
         # Event handlers can be registered here
-        self._event_handlers = {
+        self._event_handlers: Dict[str, List[Callable[..., Any]]] = {
             'on_retry': [],
             'on_success': [],
             'on_error': [],
@@ -128,7 +128,7 @@ class Retry:
             The decorated synchronous function.
         """
         @wraps(func)
-        def wrapper(*args, **kwargs) -> T:
+        def wrapper(*args: Any, **kwargs: Any) -> T:
             # Check if we're already in an event loop
             try:
                 loop = asyncio.get_running_loop()
@@ -136,23 +136,24 @@ class Retry:
                 import concurrent.futures
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     future = executor.submit(self._execute_sync, func, *args, **kwargs)
-                    return future.result()
+                    return cast(T, future.result())
             except RuntimeError:
                 # No event loop running, we can create one
                 loop = asyncio.new_event_loop()
                 try:
-                    # Create an async wrapper for the sync function
-                    async def async_wrapper(*wrapper_args, **wrapper_kwargs):
+                    # Create an async wrapper for the sync function. Inner T cannot
+                    # be re-bound to the outer T, so type as Any and cast on return.
+                    async def async_wrapper(*wrapper_args: Any, **wrapper_kwargs: Any) -> Any:
                         return func(*wrapper_args, **wrapper_kwargs)
-                    
-                    coro = self._execute_with_retry(async_wrapper, *args, **kwargs)
-                    return loop.run_until_complete(coro)
+
+                    coro: Any = self._execute_with_retry(async_wrapper, *args, **kwargs)
+                    return cast(T, loop.run_until_complete(coro))
                 finally:
                     loop.close()
-        
+
         return wrapper
-    
-    def _execute_sync(self, func: Callable[..., T], *args, **kwargs) -> T:
+
+    def _execute_sync(self, func: Callable[..., T], *args: Any, **kwargs: Any) -> T:
         """Execute synchronous retry logic without asyncio.
         
         This is used when we're already in an async context and need to run
@@ -216,12 +217,12 @@ class Retry:
             The decorated asynchronous function.
         """
         @wraps(func)
-        async def wrapper(*args, **kwargs) -> T:
+        async def wrapper(*args: Any, **kwargs: Any) -> T:
             return await self._execute_with_retry(func, *args, **kwargs)
-        
+
         return wrapper
-    
-    async def _execute_with_retry(self, func: Callable[..., Union[T, Awaitable[T]]], *args, **kwargs) -> T:
+
+    async def _execute_with_retry(self, func: Callable[..., Union[T, Awaitable[T]]], *args: Any, **kwargs: Any) -> T:
         """Execute a function with retry logic.
         
         This is the core retry implementation that handles both sync and async functions.
@@ -266,12 +267,12 @@ class Retry:
                         # Treat as success since no exception occurred
                         total_duration = time.monotonic() - start_time
                         await self._emit_success_event(attempt, last_exception, total_duration)
-                        return result
-                
+                        return cast(T, result)
+
                 # Success - emit event and return
                 total_duration = time.monotonic() - start_time
                 await self._emit_success_event(attempt, last_exception, total_duration)
-                return result
+                return cast(T, result)
                 
             except Exception as e:
                 last_exception = e
@@ -308,7 +309,7 @@ class Retry:
         assert last_exception is not None
         raise last_exception
     
-    async def _emit_retry_event(self, attempt: int, last_result: Union[Exception, Any], wait_interval: float):
+    async def _emit_retry_event(self, attempt: int, last_result: Union[Exception, Any], wait_interval: float) -> None:
         """Emit a retry event.
         
         Args:
@@ -324,7 +325,7 @@ class Retry:
         )
         await self._publish_event('on_retry', event)
     
-    async def _emit_success_event(self, attempt: int, last_exception: Optional[Exception], total_duration: float):
+    async def _emit_success_event(self, attempt: int, last_exception: Optional[Exception], total_duration: float) -> None:
         """Emit a success event.
         
         Args:
@@ -340,7 +341,7 @@ class Retry:
         )
         await self._publish_event('on_success', event)
     
-    async def _emit_error_event(self, attempt: int, last_exception: Exception, total_duration: float):
+    async def _emit_error_event(self, attempt: int, last_exception: Exception, total_duration: float) -> None:
         """Emit an error event when all retries are exhausted.
         
         Args:
@@ -356,7 +357,7 @@ class Retry:
         )
         await self._publish_event('on_error', event)
     
-    async def _emit_ignored_error_event(self, attempt: int, exception: Exception):
+    async def _emit_ignored_error_event(self, attempt: int, exception: Exception) -> None:
         """Emit an event when an exception is not retryable.
         
         Args:
@@ -370,7 +371,7 @@ class Retry:
         )
         await self._publish_event('on_ignored_error', event)
     
-    async def _publish_event(self, event_type: str, event: Any):
+    async def _publish_event(self, event_type: str, event: Any) -> None:
         """Publish an event to registered handlers.
         
         Args:
@@ -389,33 +390,33 @@ class Retry:
                 # In a real implementation, this would use proper logging
                 pass
     
-    def on_retry(self, handler: Callable[[RetryOnRetryEvent], None]):
+    def on_retry(self, handler: Callable[[RetryOnRetryEvent], None]) -> None:
         """Register a handler for retry events.
-        
+
         Args:
             handler: Function to call when a retry is scheduled.
         """
         self._event_handlers['on_retry'].append(handler)
-    
-    def on_success(self, handler: Callable[[RetryOnSuccessEvent], None]):
+
+    def on_success(self, handler: Callable[[RetryOnSuccessEvent], None]) -> None:
         """Register a handler for success events.
-        
+
         Args:
             handler: Function to call when an operation succeeds.
         """
         self._event_handlers['on_success'].append(handler)
-    
-    def on_error(self, handler: Callable[[RetryOnErrorEvent], None]):
+
+    def on_error(self, handler: Callable[[RetryOnErrorEvent], None]) -> None:
         """Register a handler for error events.
-        
+
         Args:
             handler: Function to call when all retries are exhausted.
         """
         self._event_handlers['on_error'].append(handler)
-    
-    def on_ignored_error(self, handler: Callable[[RetryOnIgnoredErrorEvent], None]):
+
+    def on_ignored_error(self, handler: Callable[[RetryOnIgnoredErrorEvent], None]) -> None:
         """Register a handler for ignored error events.
-        
+
         Args:
             handler: Function to call when an error is not retryable.
         """

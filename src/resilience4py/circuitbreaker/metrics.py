@@ -76,10 +76,9 @@ class SlidingWindowMetrics:
         self.slow_call_duration_threshold_ms = slow_call_duration_threshold_ms
         self._lock = asyncio.Lock()
         
-        if window_type == "COUNT_BASED":
-            self._calls: Deque[CallOutcome] = deque(maxlen=window_size)
-        else:  # TIME_BASED
-            self._calls: Deque[CallOutcome] = deque()
+        self._calls: Deque[CallOutcome] = (
+            deque(maxlen=window_size) if window_type == "COUNT_BASED" else deque()
+        )
     
     async def record_success(self, duration_ms: float) -> None:
         """Record a successful call.

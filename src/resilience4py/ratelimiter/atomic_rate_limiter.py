@@ -10,7 +10,7 @@ concurrency.
 import asyncio
 import time
 from dataclasses import dataclass
-from typing import Optional, Callable, Any, TypeVar, Union
+from typing import Optional, Callable, Any, TypeVar, Union, cast
 from functools import wraps
 
 from .config import RateLimiterConfig
@@ -97,7 +97,7 @@ class AtomicRateLimiter:
             The decorated function.
         """
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Run async implementation in sync context
             loop = asyncio.new_event_loop()
             try:
@@ -105,24 +105,24 @@ class AtomicRateLimiter:
                 return loop.run_until_complete(coro)
             finally:
                 loop.close()
-        return wrapper
-    
+        return cast(F, wrapper)
+
     def _decorate_async(self, func: F) -> F:
         """
         Decorate an asynchronous function.
-        
+
         Args:
             func: The asynchronous function to decorate.
-            
+
         Returns:
             The decorated function.
         """
         @wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             return await self._execute_async(func, *args, **kwargs)
-        return wrapper
-    
-    async def _execute_async(self, func: Callable, *args, **kwargs):
+        return cast(F, wrapper)
+
+    async def _execute_async(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """
         Execute function with rate limiting.
         
@@ -207,7 +207,7 @@ class AtomicRateLimiter:
                 
                 return nanoseconds_to_wait
     
-    async def _publish_event(self, event: Union[RateLimiterOnSuccessEvent, RateLimiterOnFailureEvent]):
+    async def _publish_event(self, event: Union[RateLimiterOnSuccessEvent, RateLimiterOnFailureEvent]) -> None:
         """
         Publish an event to all registered publishers and typed listeners.
 
@@ -240,7 +240,7 @@ class AtomicRateLimiter:
                     exc_info=True,
                 )
 
-    def add_event_publisher(self, publisher):
+    def add_event_publisher(self, publisher: Any) -> None:
         """
         Add an event publisher.
 
@@ -249,7 +249,7 @@ class AtomicRateLimiter:
         """
         self._event_publishers.append(publisher)
 
-    def remove_event_publisher(self, publisher):
+    def remove_event_publisher(self, publisher: Any) -> None:
         """
         Remove an event publisher.
 
@@ -297,7 +297,7 @@ class AtomicRateLimiter:
                 "current_cycle": self._state.active_cycle,
             }
     
-    async def reset(self):
+    async def reset(self) -> None:
         """Reset the rate limiter to its initial state."""
         async with self._state_lock:
             self._state = RateLimiterState(

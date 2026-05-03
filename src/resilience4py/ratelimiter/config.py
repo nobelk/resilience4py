@@ -38,6 +38,6 @@ class RateLimiterConfig:
         if self.timeout_duration.total_seconds() < 0:
             raise ValueError("timeout_duration must be non-negative")
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate configuration on initialization."""
         self.validate()

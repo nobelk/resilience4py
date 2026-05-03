@@ -57,7 +57,7 @@ class CircuitBreakerOnSuccessEvent(CircuitBreakerEvent):
     duration_ms: float = 0.0
     
     @classmethod
-    def create(cls, circuit_breaker_name: str, duration_ms: float):
+    def create(cls, circuit_breaker_name: str, duration_ms: float) -> "CircuitBreakerOnSuccessEvent":
         """Factory method to create the event."""
         return cls(
             circuit_breaker_name=circuit_breaker_name,
@@ -78,7 +78,7 @@ class CircuitBreakerOnErrorEvent(CircuitBreakerEvent):
     exception: Optional[Exception] = None
     
     @classmethod
-    def create(cls, circuit_breaker_name: str, duration_ms: float, exception: Exception):
+    def create(cls, circuit_breaker_name: str, duration_ms: float, exception: Exception) -> "CircuitBreakerOnErrorEvent":
         """Factory method to create the event."""
         return cls(
             circuit_breaker_name=circuit_breaker_name,
@@ -91,9 +91,9 @@ class CircuitBreakerOnErrorEvent(CircuitBreakerEvent):
 @dataclass
 class CircuitBreakerOnCallNotPermittedEvent(CircuitBreakerEvent):
     """Event emitted when a call is not permitted by the circuit breaker."""
-    
+
     @classmethod
-    def create(cls, circuit_breaker_name: str):
+    def create(cls, circuit_breaker_name: str) -> "CircuitBreakerOnCallNotPermittedEvent":
         """Factory method to create the event."""
         return cls(
             circuit_breaker_name=circuit_breaker_name,
@@ -113,8 +113,8 @@ class CircuitBreakerOnStateTransitionEvent(CircuitBreakerEvent):
     to_state: Optional[CircuitBreakerState] = None
     
     @classmethod
-    def create(cls, circuit_breaker_name: str, from_state: CircuitBreakerState, 
-               to_state: CircuitBreakerState):
+    def create(cls, circuit_breaker_name: str, from_state: CircuitBreakerState,
+               to_state: CircuitBreakerState) -> "CircuitBreakerOnStateTransitionEvent":
         """Factory method to create the event."""
         return cls(
             circuit_breaker_name=circuit_breaker_name,
@@ -127,9 +127,9 @@ class CircuitBreakerOnStateTransitionEvent(CircuitBreakerEvent):
 @dataclass
 class CircuitBreakerOnResetEvent(CircuitBreakerEvent):
     """Event emitted when circuit breaker is reset."""
-    
+
     @classmethod
-    def create(cls, circuit_breaker_name: str):
+    def create(cls, circuit_breaker_name: str) -> "CircuitBreakerOnResetEvent":
         """Factory method to create the event."""
         return cls(
             circuit_breaker_name=circuit_breaker_name,
@@ -147,7 +147,7 @@ class CircuitBreakerOnIgnoredErrorEvent(CircuitBreakerEvent):
     exception: Optional[Exception] = None
     
     @classmethod
-    def create(cls, circuit_breaker_name: str, exception: Exception):
+    def create(cls, circuit_breaker_name: str, exception: Exception) -> "CircuitBreakerOnIgnoredErrorEvent":
         """Factory method to create the event."""
         return cls(
             circuit_breaker_name=circuit_breaker_name,
@@ -166,7 +166,7 @@ class CircuitBreakerOnSlowCallRateExceededEvent(CircuitBreakerEvent):
     slow_call_rate: float = 0.0
     
     @classmethod
-    def create(cls, circuit_breaker_name: str, slow_call_rate: float):
+    def create(cls, circuit_breaker_name: str, slow_call_rate: float) -> "CircuitBreakerOnSlowCallRateExceededEvent":
         """Factory method to create the event."""
         return cls(
             circuit_breaker_name=circuit_breaker_name,
@@ -185,7 +185,7 @@ class CircuitBreakerOnFailureRateExceededEvent(CircuitBreakerEvent):
     failure_rate: float = 0.0
     
     @classmethod
-    def create(cls, circuit_breaker_name: str, failure_rate: float):
+    def create(cls, circuit_breaker_name: str, failure_rate: float) -> "CircuitBreakerOnFailureRateExceededEvent":
         """Factory method to create the event."""
         return cls(
             circuit_breaker_name=circuit_breaker_name,
@@ -207,7 +207,7 @@ class CircuitBreakerOnManualStateTransitionEvent(CircuitBreakerEvent):
     
     @classmethod
     def create(cls, circuit_breaker_name: str, from_state: CircuitBreakerState,
-               to_state: CircuitBreakerState):
+               to_state: CircuitBreakerState) -> "CircuitBreakerOnManualStateTransitionEvent":
         """Factory method to create the event."""
         return cls(
             circuit_breaker_name=circuit_breaker_name,

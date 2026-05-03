@@ -2,7 +2,7 @@
 Main RateLimiter class that provides the public interface.
 """
 
-from typing import Optional, Dict, Callable, Any, TypeVar
+from typing import Optional, Dict, Callable, Any, TypeVar, cast
 from weakref import WeakValueDictionary
 import asyncio
 
@@ -22,7 +22,7 @@ class RateLimiterRegistry:
     underlying atomic rate limiter instance.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the registry."""
         self._default_config = RateLimiterConfig()
         self._instances: WeakValueDictionary[str, AtomicRateLimiter] = WeakValueDictionary()
@@ -51,16 +51,16 @@ class RateLimiterRegistry:
                 self._configs[name] = config
             return instance
     
-    def set_default_config(self, config: RateLimiterConfig):
+    def set_default_config(self, config: RateLimiterConfig) -> None:
         """
         Set the default configuration for new rate limiters.
-        
+
         Args:
             config: The default configuration to use.
         """
         self._default_config = config
-    
-    def remove(self, name: str):
+
+    def remove(self, name: str) -> None:
         """
         Remove a rate limiter from the registry.
         
@@ -144,14 +144,14 @@ class RateLimiter:
     def _decorate_sync(self, func: F) -> F:
         """
         Decorate a synchronous function.
-        
+
         Args:
             func: The synchronous function to decorate.
-            
+
         Returns:
             The decorated function.
         """
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             loop = asyncio.new_event_loop()
             try:
                 limiter = loop.run_until_complete(self._get_limiter())
@@ -159,23 +159,23 @@ class RateLimiter:
                 return decorated(*args, **kwargs)
             finally:
                 loop.close()
-        return wrapper
-    
+        return cast(F, wrapper)
+
     def _decorate_async(self, func: F) -> F:
         """
         Decorate an asynchronous function.
-        
+
         Args:
             func: The asynchronous function to decorate.
-            
+
         Returns:
             The decorated function.
         """
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             limiter = await self._get_limiter()
             decorated = limiter(func)
             return await decorated(*args, **kwargs)
-        return wrapper
+        return cast(F, wrapper)
     
     @staticmethod
     def of(name: str, config: Optional[RateLimiterConfig] = None) -> 'RateLimiter':
@@ -192,10 +192,10 @@ class RateLimiter:
         return RateLimiter(name, config)
     
     @staticmethod
-    def set_default_config(config: RateLimiterConfig):
+    def set_default_config(config: RateLimiterConfig) -> None:
         """
         Set the default configuration for all new rate limiters.
-        
+
         Args:
             config: The default configuration to use.
         """
@@ -229,7 +229,7 @@ class RateLimiter:
         limiter = await self._get_limiter()
         return await limiter.get_metrics()
     
-    async def reset(self):
+    async def reset(self) -> None:
         """Reset this rate limiter to its initial state."""
         limiter = await self._get_limiter()
         await limiter.reset()

@@ -63,7 +63,7 @@ class ThreadPoolBulkhead(Bulkhead):
         # "coroutine was never awaited" warnings whenever no loop was running.
         self._metrics_initialized = False
 
-    async def _ensure_metrics_initialized(self):
+    async def _ensure_metrics_initialized(self) -> None:
         """Initialize metrics on first use (lazy init)."""
         if not self._metrics_initialized:
             await self.metrics.update_max_allowed_concurrent_calls(self._total_capacity)
@@ -111,7 +111,7 @@ class ThreadPoolBulkhead(Bulkhead):
         event = BulkheadOnCallFinishedEvent(self.name)
         await self._publish_event(event)
     
-    async def submit(self, func: Callable, *args, **kwargs) -> Any:
+    async def submit(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """
         Submit a function to the thread pool for execution.
         
@@ -157,7 +157,7 @@ class ThreadPoolBulkhead(Bulkhead):
             await self.release_permission()
             await self.on_call_finished()
     
-    async def _execute_async(self, func: Callable, *args, **kwargs):
+    async def _execute_async(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """
         Execute function with thread pool bulkhead protection.
         
@@ -224,7 +224,7 @@ class ThreadPoolBulkhead(Bulkhead):
         """
         self._executor.shutdown(wait=wait)
     
-    def __del__(self):
+    def __del__(self) -> None:
         """Cleanup thread pool on deletion."""
         if hasattr(self, '_executor'):
             self.shutdown(wait=False)

@@ -18,6 +18,10 @@ where = ["src"]
 include = ["resilience4py*"]
 exclude = ["examples*"]
 
+[tool.setuptools.package-data]
+# Ship PEP 561 marker so downstream type-checkers see resilience4py as typed.
+resilience4py = ["py.typed"]
+
 [project.optional-dependencies]
 test = [
     "pytest>=7.4.0",
@@ -88,6 +92,15 @@ target-version = ["py310", "py311", "py312"]
 
 [tool.mypy]
 python_version = "3.10"
+# src layout — tell mypy where to look and treat each top-level src dir as a
+# package root so cross-module imports resolve against the in-tree code rather
+# than any installed copy.
+mypy_path = "src"
+explicit_package_bases = true
+namespace_packages = true
+# The Flask example apps under src/examples/ are not part of the library's
+# typing contract (improvements.md 3.3). Exclude them from the default check.
+exclude = ["^src/examples/"]
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

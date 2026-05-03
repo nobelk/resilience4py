@@ -7,7 +7,7 @@ circuit breaker pattern for fault tolerance in distributed systems.
 import asyncio
 import time
 from functools import partial, wraps
-from typing import Any, Callable, Optional, TypeVar, Union, Awaitable, Dict, List
+from typing import Any, Callable, Optional, TypeVar, Union, Awaitable, Dict, List, cast
 from weakref import WeakSet
 
 from .config import CircuitBreakerConfig, SlidingWindowType
@@ -141,7 +141,7 @@ class CircuitBreaker:
     def _decorate_sync(self, func: F) -> F:
         """Decorate synchronous function."""
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Run async implementation in sync context
             loop = None
             try:
@@ -163,18 +163,18 @@ class CircuitBreaker:
                     self._execute_async(func, *args, **kwargs),
                     loop
                 ).result()
-        
-        return wrapper
-    
+
+        return cast(F, wrapper)
+
     def _decorate_async(self, func: F) -> F:
         """Decorate asynchronous function."""
         @wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             return await self._execute_async(func, *args, **kwargs)
-        
-        return wrapper
-    
-    async def _execute_async(self, func: Callable, *args, **kwargs) -> Any:
+
+        return cast(F, wrapper)
+
+    async def _execute_async(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Execute function with circuit breaker protection.
         
         Args:

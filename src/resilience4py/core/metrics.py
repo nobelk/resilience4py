@@ -74,17 +74,17 @@ class Metrics(ABC):
         self._lock = asyncio.Lock()
     
     @abstractmethod
-    async def record_success(self, duration: float, **kwargs) -> None:
+    async def record_success(self, duration: float, **kwargs: Any) -> None:
         """Record a successful call
-        
+
         Args:
             duration: Duration of the call in seconds
             **kwargs: Additional pattern-specific metrics
         """
         pass
-    
+
     @abstractmethod
-    async def record_failure(self, duration: float, exception: Optional[Exception] = None, **kwargs) -> None:
+    async def record_failure(self, duration: float, exception: Optional[Exception] = None, **kwargs: Any) -> None:
         """Record a failed call
         
         Args:
@@ -129,14 +129,14 @@ class BasicMetrics(Metrics):
         self._total_duration = 0.0
         self._start_time = time.time()
     
-    async def record_success(self, duration: float, **kwargs) -> None:
+    async def record_success(self, duration: float, **kwargs: Any) -> None:
         """Record a successful call"""
         async with self._lock:
             self._total_calls += 1
             self._successful_calls += 1
             self._total_duration += duration
-    
-    async def record_failure(self, duration: float, exception: Optional[Exception] = None, **kwargs) -> None:
+
+    async def record_failure(self, duration: float, exception: Optional[Exception] = None, **kwargs: Any) -> None:
         """Record a failed call"""
         async with self._lock:
             self._total_calls += 1
@@ -200,7 +200,7 @@ class SlidingWindowMetrics(Metrics):
         self.window_type = window_type
         self._calls: deque[CallRecord] = deque(maxlen=window_size if window_type == "COUNT_BASED" else None)
     
-    async def record_success(self, duration: float, **kwargs) -> None:
+    async def record_success(self, duration: float, **kwargs: Any) -> None:
         """Record a successful call"""
         async with self._lock:
             record = CallRecord(
@@ -211,8 +211,8 @@ class SlidingWindowMetrics(Metrics):
             )
             self._calls.append(record)
             await self._cleanup_old_records()
-    
-    async def record_failure(self, duration: float, exception: Optional[Exception] = None, **kwargs) -> None:
+
+    async def record_failure(self, duration: float, exception: Optional[Exception] = None, **kwargs: Any) -> None:
         """Record a failed call"""
         async with self._lock:
             record = CallRecord(
@@ -273,7 +273,7 @@ class MetricsRegistry:
     resilience patterns in one place.
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize metrics registry"""
         self._metrics: Dict[str, Metrics] = {}
         self._lock = asyncio.Lock()

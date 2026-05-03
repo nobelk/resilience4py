@@ -6,7 +6,7 @@ allowing customization of failure thresholds, sliding windows, and state transit
 
 from dataclasses import dataclass, field
 from datetime import timedelta
-from typing import List, Type, Optional
+from typing import Callable, List, Type, Optional
 from enum import Enum
 
 
@@ -54,10 +54,10 @@ class CircuitBreakerConfig:
     automatic_transition_from_open_to_half_open: bool = True
     record_exceptions: List[Type[Exception]] = field(default_factory=list)
     ignore_exceptions: List[Type[Exception]] = field(default_factory=list)
-    record_failure_predicate: Optional[callable] = None
-    ignore_failure_predicate: Optional[callable] = None
-    
-    def __post_init__(self):
+    record_failure_predicate: Optional[Callable[[Exception], bool]] = None
+    ignore_failure_predicate: Optional[Callable[[Exception], bool]] = None
+
+    def __post_init__(self) -> None:
         """Validate configuration parameters."""
         self.validate()
     

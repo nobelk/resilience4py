@@ -6,7 +6,7 @@ and asynchronous functions transparently.
 """
 
 from functools import wraps
-from typing import TypeVar, Callable, Union, Awaitable, Any, List
+from typing import TypeVar, Callable, Union, Awaitable, Any, List, cast
 import asyncio
 from abc import ABC, abstractmethod
 import logging
@@ -62,7 +62,7 @@ class BaseDecorator(ABC):
             Wrapped synchronous function
         """
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Try to get the current event loop
             try:
                 loop = asyncio.get_running_loop()
@@ -74,10 +74,10 @@ class BaseDecorator(ABC):
             except RuntimeError:
                 # No event loop running, create a new one
                 return self._run_sync_in_new_loop(func, args, kwargs)
-        
-        return wrapper
-    
-    def _run_sync_in_new_loop(self, func: Callable, args: tuple, kwargs: dict) -> Any:
+
+        return cast(F, wrapper)
+
+    def _run_sync_in_new_loop(self, func: Callable[..., Any], args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
         """Run sync function in a new event loop
         
         Args:
@@ -107,13 +107,13 @@ class BaseDecorator(ABC):
             Wrapped asynchronous function
         """
         @wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             return await self._execute_async(func, *args, **kwargs)
-        
-        return wrapper
-    
+
+        return cast(F, wrapper)
+
     @abstractmethod
-    async def _execute_async(self, func: Callable, *args, **kwargs) -> Any:
+    async def _execute_async(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Execute function with resilience pattern
         
         This method must be implemented by subclasses to apply the
@@ -157,29 +157,29 @@ class CompositeDecorator(BaseDecorator):
         super().__init__(name)
         self.decorators = decorators
     
-    async def _execute_async(self, func: Callable, *args, **kwargs) -> Any:
+    async def _execute_async(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Execute function through all decorators in order
-        
+
         Args:
             func: Function to execute
             *args: Positional arguments
             **kwargs: Keyword arguments
-            
+
         Returns:
             Result of the function execution
         """
         # Build the chain of decorators
-        current_func = func
-        
+        current_func: Callable[..., Any] = func
+
         # Apply decorators in reverse order so they execute in the correct order
         for decorator in reversed(self.decorators):
             # Create a closure to capture the current function
-            def make_wrapped(f, d):
-                async def wrapped(*a, **kw):
+            def make_wrapped(f: Callable[..., Any], d: 'BaseDecorator') -> Callable[..., Any]:
+                async def wrapped(*a: Any, **kw: Any) -> Any:
                     return await d._execute_async(f, *a, **kw)
                 return wrapped
-            
+
             current_func = make_wrapped(current_func, decorator)
-        
+
         # Execute the wrapped function
         return await current_func(*args, **kwargs)
