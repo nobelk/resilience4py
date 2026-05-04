@@ -62,6 +62,23 @@ markers = [
     "unit: marks tests as unit tests",
     "asyncio: marks tests as async (auto-applied by pytest-asyncio in auto mode)",
 ]
+# Treat concurrency-correctness warnings as errors so silent coroutine
+# lifecycle bugs cannot slip past a green test suite. improvements.md 5.2.
+#
+# Scope is intentionally narrow:
+#   - RuntimeWarning catches "coroutine was never awaited" / "task was
+#     destroyed but it is pending" — the exact class of bug 5.2 calls
+#     out. The previous ThreadPoolBulkhead constructor warning belonged
+#     here.
+#
+# Not (yet) escalated:
+#   - ResourceWarning for unclosed event loops is a known consequence of
+#     the per-call new_event_loop() pattern flagged by 1.3 / 2.1. Once
+#     the sync-on-async refactor lands, drop the override and let
+#     `error` cover all warnings.
+filterwarnings = [
+    "error::RuntimeWarning",
+]
 
 [tool.coverage.run]
 source = ["src/resilience4py"]

@@ -119,17 +119,45 @@ class TestMonotonicClocks:
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_uses_monotonic_for_duration(self):
-        """Patching time.monotonic affects duration measurement, proving the source."""
+        """Patching time.monotonic affects duration measurement, proving the source.
+
+        ``time.monotonic`` is consulted both to bracket the call duration
+        and to timestamp the recorded outcome, so the patch needs to
+        return values for every consult, not just two.
+        """
         cb = CircuitBreaker("regression-cb-monotonic")
 
         async def fast():
             return "ok"
 
-        with patch("time.monotonic", side_effect=[10.0, 10.5]):
+        # 10.0 -> start, 10.5 -> end (=> 500ms duration), 10.5 -> outcome
+        # timestamp recorded into the sliding window. Any extra trailing
+        # 10.5 values are harmless filler.
+        with patch("time.monotonic", side_effect=[10.0, 10.5, 10.5, 10.5]):
             await cb._execute_async(fast)
 
         snapshot = await cb.metrics.get_snapshot()
         assert snapshot.average_duration == pytest.approx(500.0, abs=1.0)
+
+    @pytest.mark.asyncio
+    async def test_circuit_breaker_metrics_window_uses_monotonic(self):
+        """Time-based window cleanup must use monotonic, not wall clock."""
+        from resilience4py.circuitbreaker.metrics import SlidingWindowMetrics
+
+        # Window of 10s. Record a call "now"; advance monotonic past the
+        # window and confirm the entry is evicted on the next snapshot.
+        with patch("time.monotonic", return_value=1000.0):
+            window = SlidingWindowMetrics(
+                window_size=10,
+                window_type="TIME_BASED",
+                slow_call_duration_threshold_ms=100.0,
+            )
+            await window.record_success(5.0)
+            assert len(window._calls) == 1
+
+        with patch("time.monotonic", return_value=1100.0):
+            snapshot = await window.get_snapshot()
+            assert snapshot.total_calls == 0
 
 
 class TestConstructorNoLoopRequired:

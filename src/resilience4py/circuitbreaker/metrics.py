@@ -6,8 +6,7 @@ durations, and calculating failure/slow call rates.
 
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Deque, List, Optional, Union
+from typing import Deque, List
 import asyncio
 import time
 
@@ -15,9 +14,11 @@ import time
 @dataclass
 class CallOutcome:
     """Represents the outcome of a single call.
-    
+
     Attributes:
-        timestamp: When the call was made.
+        timestamp: Monotonic clock reading captured when the call was
+            recorded. Used only for time-based window expiration math; do
+            not interpret as a wall-clock time.
         duration_ms: Duration of the call in milliseconds.
         success: Whether the call succeeded.
         slow: Whether the call was considered slow.
@@ -87,28 +88,28 @@ class SlidingWindowMetrics:
             duration_ms: Duration of the call in milliseconds.
         """
         outcome = CallOutcome(
-            timestamp=time.time(),
+            timestamp=time.monotonic(),
             duration_ms=duration_ms,
             success=True,
             slow=duration_ms >= self.slow_call_duration_threshold_ms
         )
-        
+
         async with self._lock:
             await self._add_call(outcome)
-    
+
     async def record_failure(self, duration_ms: float) -> None:
         """Record a failed call.
-        
+
         Args:
             duration_ms: Duration of the call in milliseconds.
         """
         outcome = CallOutcome(
-            timestamp=time.time(),
+            timestamp=time.monotonic(),
             duration_ms=duration_ms,
             success=False,
             slow=duration_ms >= self.slow_call_duration_threshold_ms
         )
-        
+
         async with self._lock:
             await self._add_call(outcome)
     
@@ -172,7 +173,7 @@ class SlidingWindowMetrics:
         if self.window_type != "TIME_BASED":
             return
         
-        current_time = time.time()
+        current_time = time.monotonic()
         window_start = current_time - self.window_size
         
         # Remove calls older than the window
@@ -202,20 +203,20 @@ class HalfOpenMetrics:
     async def record_success(self, duration_ms: float) -> None:
         """Record a successful call."""
         outcome = CallOutcome(
-            timestamp=time.time(),
+            timestamp=time.monotonic(),
             duration_ms=duration_ms,
             success=True,
             slow=duration_ms >= self.slow_call_duration_threshold_ms
         )
-        
+
         async with self._lock:
             if len(self._calls) < self.permitted_calls:
                 self._calls.append(outcome)
-    
+
     async def record_failure(self, duration_ms: float) -> None:
         """Record a failed call."""
         outcome = CallOutcome(
-            timestamp=time.time(),
+            timestamp=time.monotonic(),
             duration_ms=duration_ms,
             success=False,
             slow=duration_ms >= self.slow_call_duration_threshold_ms
